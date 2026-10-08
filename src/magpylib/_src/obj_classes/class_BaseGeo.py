@@ -23,6 +23,7 @@ from magpylib._src.obj_classes.class_BaseTransform import (
     pad_path_property,
     path_property_len,
 )
+from magpylib._src.recording import wrap_class
 from magpylib._src.style import BaseStyle
 from magpylib._src.utility import add_iteration_suffix, unit_prefix
 
@@ -196,6 +197,10 @@ class BaseGeo(BaseTransform, ABC):
             parent_attr.extend(base.__dict__.get("_path_properties", ()))
         own_attr = cls.__dict__.get("_path_properties", ())
         cls._path_properties = tuple(dict.fromkeys([*parent_attr, *own_attr]))
+        # report constructions, assignments and transformations to a recorder
+        for base in cls.__mro__:
+            if base not in (object, ABC):
+                wrap_class(base)
 
     def _get_path_len(self):
         """Return the effective path length of the object (max of all properties)."""
