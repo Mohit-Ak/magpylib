@@ -111,7 +111,10 @@ def _recorded(fn, kind, name=None):
             result = fn(self, *recorder._resolved(args), **recorder._resolved(kwargs))
         finally:
             _INSIDE.reset(token)
-        label = name or (type(self).__name__ if kind == "new" else fn.__name__)
+        if kind == "new":
+            label = magpylib_class(type(self)).__name__
+        else:
+            label = name or fn.__name__
         recorder.on_event(Event(kind, self, label, args, kwargs, result))
         return result
 
@@ -119,10 +122,22 @@ def _recorded(fn, kind, name=None):
     return wrapper
 
 
+def magpylib_class(cls):
+    """The nearest class in ``cls``'s hierarchy that Magpylib defines."""
+    return next(c for c in cls.__mro__ if c.__module__.startswith("magpylib."))
+
+
 def wrap_class(cls):
     """Wrap, in place and once, what ``cls`` itself defines: ``__init__``,
-    property setters, and the methods in ``RECORDED_METHODS``."""
+    property setters, and the methods in ``RECORDED_METHODS``.
+
+    Only Magpylib's own classes: a subclass written elsewhere is transparent,
+    so the Magpylib calls its methods make are what gets recorded, and its
+    objects are reported as the Magpylib class they extend.
+    """
     if cls.__dict__.get("_magpylib_recording_wrapped"):
+        return
+    if not cls.__module__.startswith("magpylib."):
         return
     for attr, value in list(cls.__dict__.items()):
         if attr == "__init__" and callable(value):

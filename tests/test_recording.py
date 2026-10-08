@@ -57,3 +57,36 @@ def test_nothing_is_recorded_outside_the_block():
         pass
     magpy.magnet.Cuboid(dimension=(1, 1, 1), polarization=(0, 0, 1)).move((1, 0, 0))
     assert log == []
+
+
+def test_a_subclass_written_elsewhere_is_transparent():
+    class Ring(magpy.Collection):
+        """A user's subclass whose property builds the ring."""
+
+        @property
+        def cubes(self):
+            return len(self.children)
+
+        @cubes.setter
+        def cubes(self, n):
+            for i in range(n):
+                cube = magpy.magnet.Cuboid(
+                    dimension=(1, 1, 1), polarization=(0, 0, 1), position=(3, 0, 0)
+                )
+                cube.rotate_from_angax(360 * i / n, "z", anchor=0)
+                self.add(cube)
+
+    log = []
+    with record(log.append):
+        ring = Ring()
+        ring.cubes = 2
+    assert [(e.kind, e.name) for e in log] == [
+        ("new", "Collection"),
+        ("new", "Cuboid"),
+        ("call", "rotate_from_angax"),
+        ("call", "add"),
+        ("new", "Cuboid"),
+        ("call", "rotate_from_angax"),
+        ("call", "add"),
+    ]
+    assert log[0].obj is ring
